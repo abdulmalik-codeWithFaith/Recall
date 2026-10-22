@@ -1,0 +1,102 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #0d0c12;
+  --surface: #15141d;
+  --surface-2: #1d1b28;
+  --line: rgba(255, 255, 255, 0.09);
+  --fg: #f4f2fa;
+  --muted: #a19eb2;
+  --brand: #8b5cf6;
+  --brand-soft: #c4b5fd;
+  --accent: #f472b6;
+  --ok: #34d399;
+  --err: #f87171;
+  color-scheme: dark;
+}
+
+.light {
+  --bg: #faf9fd;
+  --surface: #ffffff;
+  --surface-2: #f3f1fa;
+  --line: rgba(20, 16, 40, 0.1);
+  --fg: #17142b;
+  --muted: #625f78;
+  --brand: #7c3aed;
+  --brand-soft: #6d28d9;
+  --accent: #db2777;
+  color-scheme: light;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-brand: var(--brand);
+  --color-brand-soft: var(--brand-soft);
+  --color-accent: var(--accent);
+  --color-ok: var(--ok);
+  --color-err: var(--err);
+  --font-sans: var(--f-body);
+  --font-display: var(--f-display);
+  --font-mono: var(--f-code);
+}
+
+html { scroll-behavior: smooth; scroll-padding-top: 5rem; }
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--f-body), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Soft violet glow behind the hero; fixed so it never scrolls into sections */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(60rem 36rem at 70% -10%, color-mix(in oklab, var(--brand) 28%, transparent), transparent 70%),
+    radial-gradient(40rem 28rem at 0% 20%, color-mix(in oklab, var(--accent) 10%, transparent), transparent 70%);
+}
+
+::selection { background: color-mix(in oklab, var(--brand) 45%, transparent); }
+
+:focus-visible { outline: 2px solid var(--brand-soft); outline-offset: 3px; border-radius: 6px; }
+
+/* The headline echo: "the same bug", twice */
+.echo { position: relative; display: inline-block; isolation: isolate; }
+.echo::after {
+  content: attr(data-text);
+  position: absolute;
+  left: 0.055em;
+  top: 0.065em;
+  z-index: -1;
+  white-space: nowrap;
+  color: transparent;
+  -webkit-text-stroke: 1.5px color-mix(in oklab, var(--accent) 75%, transparent);
+}
+
+.hl { background: color-mix(in oklab, var(--brand) 28%, transparent); border-radius: 4px; padding: 0 3px; }
+
+.shimmer {
+  background: linear-gradient(90deg, var(--surface-2) 25%, color-mix(in oklab, var(--brand) 18%, var(--surface-2)) 50%, var(--surface-2) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.2s linear infinite;
+}
+@keyframes shimmer { to { background-position: -200% 0; } }
+
+.caret { animation: blink 1s steps(2) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .shimmer, .caret { animation: none; }
+}
