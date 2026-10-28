@@ -1,44 +1,59 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { AuthShell, inputCls } from "@/components/auth/AuthShell";
-import { Field, FormError, PasswordInput, SubmitButton } from "@/components/auth/FormField";
-import { login } from "@/lib/auth-client";
-import { loginSchema, type LoginValues } from "@/lib/validation/auth";
+import { Fingerprint, Smartphone, TriangleAlert } from "lucide-react";
+import { AuthShell } from "@/components/auth/AuthShell";
+import { FormError } from "@/components/auth/FormField";
+import { describePasskeyError, passkeysSupported, signInWithPasskey } from "@/lib/passkey-client";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [serverError, setServerError] = useState<string | null>(null);
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginValues>({ resolver: zodResolver(loginSchema) });
+  const [busy, setBusy] = useState<"main" | "device" | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [supported, setSupported] = useState(true);
 
-  const onSubmit = async (values: LoginValues) => {
-    setServerError(null);
+  useEffect(() => {
+    setSupported(passkeysSupported());
+    fetch("/api/auth/me").then((r) => r.ok && router.replace("/dashboard")).catch(() => {});
+  }, [router]);
+
+  const go = async (crossDevice: boolean) => {
+    setError(null);
+    setBusy(crossDevice ? "device" : "main");
     try {
-      await login(values);
+      await signInWithPasskey({ crossDevice });
       router.push("/dashboard");
       router.refresh();
     } catch (e) {
-      setServerError((e as Error).message);
+      setError(describePasskeyError(e, "signin"));
+      setBusy(null);
     }
   };
 
   return (
-    <AuthShell title="Welcome back" subtitle="Log in to search your developer memory."
-      footer={<>New here? <Link href="/register" className="font-medium text-brand-soft hover:underline">Create an account</Link></>}>
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
-        <FormError message={serverError} />
-        <Field label="Email" error={errors.email?.message}>
-          <input type="email" autoComplete="email" placeholder="you@example.com" className={inputCls} {...register("email")} />
-        </Field>
-        <Field label="Password" error={errors.password?.message}
-          hint={<Link href="/forgot-password" className="text-sm font-normal text-brand-soft hover:underline">Forgot password?</Link>}>
-          <PasswordInput autoComplete="current-password" placeholder="Your password" {...register("password")} />
-        </Field>
-        <SubmitButton loading={isSubmitting}>Log in</SubmitButton>
-      </form>
+    <AuthShell title="Welcome back" subtitle="Pick up where you left off."
+      footer={<>New to RecallAI? <Link href="/register" className="font-medium text-brand-soft hover:underline">Create an account</Link></>}>
+      {!supported && (
+        <div role="alert" className="mb-4 flex gap-3 rounded-xl border border-err/30 bg-err/10 p-4 text-sm">
+          <TriangleAlert className="mt-0.5 size-4 shrink-0 text-err" />
+          <p>This browser or device doesn&apos;t support passkeys. Try a recent version of Chrome, Safari, Edge or Firefox.</p>
+        </div>
+      )}
+      <div className="space-y-3">
+        <FormError message={error} />
+        <button onClick={() => go(false)} disabled={busy !== null || !supported}
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand px-4 py-3.5 font-medium text-white shadow-lg shadow-brand/25 transition-transform active:scale-[0.98] disabled:opacity-70">
+          {busy === "main" ? <span className="size-4 animate-spin rounded-full border-2 border-white/30 border-t-white" /> : <Fingerprint className="size-4.5" />}
+          Sign in with passkey
+        </button>
+        <button onClick={() => go(true)} disabled={busy !== null || !supported}
+          className="flex w-full items-center justify-center gap-2 rounded-xl border border-line px-4 py-3.5 text-sm font-medium transition-colors hover:bg-surface disabled:opacity-60">
+          {busy === "device" ? <span className="size-4 animate-spin rounded-full border-2 border-fg/30 border-t-fg" /> : <Smartphone className="size-4.5" />}
+          Use a passkey from another device
+        </button>
+        <p className="pt-1 text-center text-xs text-muted">On a laptop, the second option shows a QR code to scan with your phone.</p>
+      </div>
     </AuthShell>
   );
 }

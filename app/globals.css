@@ -1,5 +1,6 @@
 @import "tailwindcss";
 
+/* RecallAI design tokens — dark first, light via the .light class on <html> */
 :root {
   --bg: #0d0c12;
   --surface: #15141d;

@@ -23,7 +23,6 @@ export interface Stats {
 export interface User {
   id: string;
   name: string;
-  email: string;
 }
 
 /** One semantic-search hit. `score` is null unless the API can derive a reliable 0–1 similarity. */

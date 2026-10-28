@@ -1,48 +1,56 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { Fingerprint, TriangleAlert } from "lucide-react";
 import { AuthShell, inputCls } from "@/components/auth/AuthShell";
-import { Field, FormError, PasswordInput, SubmitButton } from "@/components/auth/FormField";
-import { register as registerUser } from "@/lib/auth-client";
-import { registerSchema, type RegisterValues } from "@/lib/validation/auth";
+import { Field, FormError, SubmitButton } from "@/components/auth/FormField";
+import { describePasskeyError, passkeysSupported, signUpWithPasskey } from "@/lib/passkey-client";
+import { nameSchema } from "@/lib/validation/auth";
 
 export default function RegisterPage() {
   const router = useRouter();
-  const [serverError, setServerError] = useState<string | null>(null);
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<RegisterValues>({ resolver: zodResolver(registerSchema) });
+  const [name, setName] = useState("");
+  const [fieldError, setFieldError] = useState<string>();
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [supported, setSupported] = useState(true);
 
-  const onSubmit = async ({ confirmPassword: _c, ...values }: RegisterValues) => {
-    setServerError(null);
+  useEffect(() => setSupported(passkeysSupported()), []);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    const parsed = nameSchema.safeParse({ name });
+    if (!parsed.success) return setFieldError(parsed.error.issues[0].message);
+    setFieldError(undefined);
+    setLoading(true);
     try {
-      await registerUser(values); // the API creates the account and starts a session
+      await signUpWithPasskey(parsed.data.name);
       router.push("/dashboard");
       router.refresh();
-    } catch (e) {
-      setServerError((e as Error).message);
+    } catch (err) {
+      setError(describePasskeyError(err, "signup"));
+      setLoading(false);
     }
   };
 
   return (
-    <AuthShell title="Create your memory" subtitle="Save what you solve. Find it later in your own words."
-      footer={<>Already have an account? <Link href="/login" className="font-medium text-brand-soft hover:underline">Log in</Link></>}>
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
-        <FormError message={serverError} />
-        <Field label="Full name" error={errors.name?.message}>
-          <input autoComplete="name" placeholder="Ada Lovelace" className={inputCls} {...register("name")} />
+    <AuthShell title="Welcome to RecallAI" subtitle="Your coding knowledge, always within reach."
+      footer={<>Already have an account? <Link href="/login" className="font-medium text-brand-soft hover:underline">Sign in</Link></>}>
+      {!supported && (
+        <div role="alert" className="mb-4 flex gap-3 rounded-xl border border-err/30 bg-err/10 p-4 text-sm">
+          <TriangleAlert className="mt-0.5 size-4 shrink-0 text-err" />
+          <p>This browser or device doesn&apos;t support passkeys. Try a recent version of Chrome, Safari, Edge or Firefox.</p>
+        </div>
+      )}
+      <form onSubmit={submit} className="space-y-4" noValidate>
+        <FormError message={error} />
+        <Field label="Your name" error={fieldError}>
+          <input value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" placeholder="Ada Lovelace" disabled={loading} className={inputCls} />
         </Field>
-        <Field label="Email" error={errors.email?.message}>
-          <input type="email" autoComplete="email" placeholder="you@example.com" className={inputCls} {...register("email")} />
-        </Field>
-        <Field label="Password" error={errors.password?.message}>
-          <PasswordInput autoComplete="new-password" placeholder="At least 8 characters" {...register("password")} />
-        </Field>
-        <Field label="Confirm password" error={errors.confirmPassword?.message}>
-          <PasswordInput autoComplete="new-password" placeholder="Repeat your password" {...register("confirmPassword")} />
-        </Field>
-        <SubmitButton loading={isSubmitting}>Create account</SubmitButton>
+        <SubmitButton loading={loading}>{!loading && <Fingerprint className="size-4.5" />} Create account with passkey</SubmitButton>
+        <p className="text-center text-xs text-muted">No email or password. You&apos;ll confirm with your fingerprint, face, or device PIN.</p>
       </form>
     </AuthShell>
   );
