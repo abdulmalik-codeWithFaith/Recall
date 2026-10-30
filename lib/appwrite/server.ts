@@ -66,6 +66,10 @@ export function fail(e: unknown) {
     const status = e.code >= 400 && e.code < 600 ? e.code : 500;
     return NextResponse.json({ error: FRIENDLY[e.type] ?? (status < 500 ? e.message : "Something went wrong."), type: e.type }, { status });
   }
+  if (e instanceof TypeError && e.message === "fetch failed") {
+    console.error("Appwrite unreachable:", (e.cause as { code?: string } | undefined)?.code ?? e.message);
+    return NextResponse.json({ error: "Couldn't reach Appwrite. Check your internet connection (or VPN/firewall) and try again.", type: "network_unreachable" }, { status: 503 });
+  }
   console.error(e);
   return NextResponse.json({ error: "Something went wrong." }, { status: 500 });
 }
